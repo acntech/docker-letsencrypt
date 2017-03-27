@@ -1,0 +1,9 @@
+version: "2"
+
+services:
+  acntech_letsencrypt:
+    build: .
+    image: acntech/letsencrypt:latest
+    container_name: acntech-letsencrypt
+    hostname: letsencrypt
+    domainname: acntech.internal
