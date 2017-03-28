@@ -75,7 +75,7 @@ MESSAGE=""
 
 log() {
    local message=$1
-   local level=${1:-INFO}
+   local level=${2:-INFO}
 
    echo "$(date +'%F %T.%3N %Z') ${level} - ${message}"
 }

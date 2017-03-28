@@ -5,7 +5,7 @@ MAINTAINER Thomas Johansen "thomas.johansen@accenture.com"
 ARG CERTBOT_URL=https://dl.eff.org/certbot-auto
 
 
-ENV LETSENCRYPT_HOME /opt/letsencrypt/
+ENV LETSENCRYPT_HOME /opt/letsencrypt
 ENV LETSENCRYPT_CERTS_DIR ${LETSENCRYPT_HOME}/certs
 ENV LETSENCRYPT_LOG_DIR ${LETSENCRYPT_HOME}/logs
 ENV PATH $PATH:${LETSENCRYPT_HOME}/bin
