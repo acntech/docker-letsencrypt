@@ -74,9 +74,19 @@ fi
 
 MESSAGE=""
 
+print_pretty_timestamp() {
+   return "$(date +'%F %T.%3N %Z')"
+}
+
+print_timestamp() {
+   return "$(date +'%Y%m%d%H%M%S')"
+}
+
 log() {
    local message=$1
-   echo "$(date +'%F %T.%3N %Z') - $message"
+   local level=${1:-INFO}
+
+   echo "$(print_pretty_timestamp) ${level} - ${message}"
 }
 
 send_email() {
@@ -85,48 +95,48 @@ send_email() {
    local subject=$3
    local body=$4
 
-   if ! ${NOTIFICATION_EMAIL_ACTIVE} ; then
-      log "Email sending inactive"
-      return 0;
-   fi
-
-   if [ -z "$recipient" ]; then
+   if [ -z "${recipient}" ]; then
       log "Email recipient is not set"
-      return 1;
+      return 1
    fi
 
-   if [ -z "$subject" ]; then
+   if [ -z "${subject}" ]; then
       log "Email subject is not set"
-      return 1;
+      return 1
    fi
 
-   if [ -z "$body" ]; then
-      body="$subject";
+   if [ -z "${body}" ]; then
+      body="${subject}"
    fi
 
-   if echo "$body" | mail -s "$subject" "$recipient" -aFrom:$sender ; then
-      log "Email sent to recipient $recipient from sender $sender"
-      return 0;
+   if echo "${body}" | mail -s "${subject}" "${recipient}" -aFrom:${sender} ; then
+      log "Email sent to recipient ${recipient} from sender ${sender}"
+      return 0
    else
-      log "Unable to send email to recipient $recipient from sender $sender"
-      return 1;
+      log "Unable to send email to recipient ${recipient} from sender ${sender}"
+      return 1
    fi
 }
 
 send_emails() {
-   for EMAIL_RECIPIENT in "${NOTIFICATION_EMAIL_RECIPIENTS_ARRAY[@]}" ; do
-      send_email "${EMAIL_SENDER}" "${EMAIL_RECIPIENT}" "${MESSAGE}"
-   done
+   if ${NOTIFICATION_EMAIL_ACTIVE} ; then
+      for email_recipient in "${NOTIFICATION_EMAIL_RECIPIENTS_ARRAY[@]}" ; do
+         send_email "${EMAIL_SENDER}" "${email_recipient}" "${MESSAGE}"
+      done
+   else
+      log "Email sending inactive"
+   fi
 }
 
 handle_error() {
    if [ ! -z "${MESSAGE}" ]; then
-      log "$MESSAGE"
+      log "$MESSAGE" "ERROR"
    fi
 
    send_emails
 
-   echo "###  Certificate renewal process completed with error at $(date +'%F %T.%3N %Z')  ###"
+   echo "###  Certificate renewal process completed with error at $(print_pretty_timestamp)  ###"
+
    exit 1
 }
 
@@ -137,14 +147,15 @@ handle_success() {
 
    send_emails
 
-   echo "###  Certificate renewal process completed successfully at $(date +'%F %T.%3N %Z')  ###"
-   exit 0;
+   echo "###  Certificate renewal process completed successfully at $(print_pretty_timestamp)  ###"
+
+   exit 0
 }
 
 handle_exit() {
    local status=$?
 
-   case $status in
+   case ${status} in
       0) handle_success
          ;;
       *) handle_error
@@ -163,8 +174,8 @@ letsencrypt_retrieve_new_certificate() {
                --http-01-port ${LETSENCRYPT_HTTP_PORT} \
                --tls-sni-01-port ${LETSENCRYPT_HTTPS_PORT} \
                --rsa-key-size ${LETSENCRYPT_CERT_KEY_SIZE} \
-               --domains $domain \
-               > ${LETSENCRYPT_LOG_DIR}/retrieve_$domain.log 2>&1
+               --domains ${domain} \
+               > ${LETSENCRYPT_LOG_DIR}/retrieve_${domain}.log 2>&1
    
    return $?
 }
@@ -187,7 +198,7 @@ find_text_in_file() {
    local text_file=$1
    local text_to_find=$2
 
-   tail "$text_file" | grep "$text_to_find" > /dev/null 2>&1
+   tail "${text_file}" | grep "${text_to_find}" > /dev/null 2>&1
 
    return $?
 }
@@ -195,52 +206,50 @@ find_text_in_file() {
 retrieve_new_certificate() {
    local domain=$1
 
-   log "Retrieving new certificate for domain $domain."
-   if ! letsencrypt_retrieve_new_certificate "$domain" ; then
-      MESSAGE="Automated retrieval of certificates for domain $domain failed. Check ${LETSENCRYPT_LOG_DIR}/retrieve_$domain.log for details."
+   log "Retrieving new certificate for domain ${domain}."
+   if ! letsencrypt_retrieve_new_certificate "${domain}" ; then
+      MESSAGE="Automated retrieval of certificates for domain ${domain} failed. Check ${LETSENCRYPT_LOG_DIR}/retrieve_${domain}.log for details."
       exit 1
    fi
 }
 
 retrieve_new_certificates() {
    log "Executing automated retrieval of new certificates."
-   for DOMAIN in "${LETSENCRYPT_DOMAINS_ARRAY[@]}" ; do
-      if [ ! -d "${LETSENCRYPT_LIVE_DIR}/${DOMAIN}" ]; then
-         retrieve_new_certificate "${DOMAIN}"
+   for domain in "${LETSENCRYPT_DOMAINS_ARRAY[@]}" ; do
+      if [ ! -d "${LETSENCRYPT_LIVE_DIR}/${domain}" ]; then
+         retrieve_new_certificate "${domain}"
       else
-         log "Certificate for domain ${DOMAIN} already exists."
+         log "Certificate for domain ${domain} already exists."
       fi
    done
 }
 
 combine_new_certificate() {
    local domain=$1
+   local letsencrypt_domain_dir="${LETSENCRYPT_LIVE_DIR}/${domain}"
+   local letsencrypt_cert_file="${LETSENCRYPT_CERTS_DIR}/${domain}.pem"
 
-   LETSENCRYPT_DOMAIN_DIR="${LETSENCRYPT_LIVE_DIR}/$domain"
-   LETSENCRYPT_CERT_FILE="${LETSENCRYPT_CERTS_DIR}/$domain.pem"
-
-   log "Activating certificate from ${LETSENCRYPT_DOMAIN_DIR} to ${LETSENCRYPT_CERT_FILE}."
-   if ! cat "${LETSENCRYPT_DOMAIN_DIR}/fullchain.pem" "${LETSENCRYPT_DOMAIN_DIR}/privkey.pem" > ${LETSENCRYPT_CERT_FILE} ; then
-      MESSAGE="Failed to activate certificate ${LETSENCRYPT_CERT_FILE}."
+   log "Activating certificate from ${letsencrypt_domain_dir} to ${letsencrypt_cert_file}."
+   if ! cat "${letsencrypt_domain_dir}/fullchain.pem" "${letsencrypt_domain_dir}/privkey.pem" > ${letsencrypt_cert_file} ; then
+      MESSAGE="Failed to activate certificate ${letsencrypt_cert_file}."
       exit 1
    fi
 }
 
 backup_certificate() {
    local domain=$1
+   local letsencrypt_domain_dir="${LETSENCRYPT_LIVE_DIR}/${domain}"
+   local letsencrypt_cert_file="${LETSENCRYPT_CERTS_DIR}/${domain}.pem"
+   local letsencrypt_cert_file_backup_file="${letsencrypt_domain_dir}/${domain}.pem.$(print_timestamp)"
 
-   LETSENCRYPT_DOMAIN_DIR="${LETSENCRYPT_LIVE_DIR}/$domain"
-   LETSENCRYPT_CERT_FILE="${LETSENCRYPT_CERTS_DIR}/$domain.pem"
-   LETSENCRYPT_CERT_FILE_BACKUP_FILE="${LETSENCRYPT_DOMAIN_DIR}/$domain.pem.$(date +'%Y%m%d%H%M%S')"
-
-   if [ -f "${LETSENCRYPT_CERT_FILE}" ]; then
-      log "Backing up old certificate ${LETSENCRYPT_CERT_FILE} to ${LETSENCRYPT_CERT_FILE_BACKUP_FILE}."
-      if ! mv "${LETSENCRYPT_CERT_FILE}" "${LETSENCRYPT_CERT_FILE_BACKUP_FILE}" ; then
-         MESSAGE="Failed to backup old certificate ${LETSENCRYPT_CERT_FILE}."
+   if [ -f "${letsencrypt_cert_file}" ]; then
+      log "Backing up old certificate ${letsencrypt_cert_file} to ${letsencrypt_cert_file_backup_file}."
+      if ! mv "${letsencrypt_cert_file}" "${letsencrypt_cert_file_backup_file}" ; then
+         MESSAGE="Failed to backup old certificate ${letsencrypt_cert_file}."
          exit 1
       fi
    else
-      log "Certificate ${LETSENCRYPT_CERT_FILE} for domain $domain not found, so skipping backup."
+      log "Certificate ${letsencrypt_cert_file} for domain ${domain} not found, so skipping backup."
    fi
 }
 
@@ -254,9 +263,9 @@ renew_old_certificates() {
 
 process_certificate() {
    local domain=$1
+   local skipped_line="${domain}/fullchain.pem (skipped)"
 
-   SKIPPED_LINE="${domain}/fullchain.pem (skipped)"
-   if ! find_text_in_file "${LETSENCRYPT_LOG_DIR}/renew.log" "${SKIPPED_LINE}" ; then
+   if ! find_text_in_file "${LETSENCRYPT_LOG_DIR}/renew.log" "${skipped_line}" ; then
       log "Certificate for domain ${domain} needes to be renewed"
       backup_certificate "${domain}"
       combine_new_certificate "${domain}"
@@ -266,11 +275,12 @@ process_certificate() {
 }
 
 process_certificates() {
-   ALL_SKIPPED_LINE="No renewals were attempted"
-   if ! find_text_in_file "${LETSENCRYPT_LOG_DIR}/renew.log" "${ALL_SKIPPED_LINE}" ; then
+   local all_skipped_line="No renewals were attempted"
+   
+   if ! find_text_in_file "${LETSENCRYPT_LOG_DIR}/renew.log" "${all_skipped_line}" ; then
       log "One or more certificates needs to be renewed"
-      for DOMAIN in "${LETSENCRYPT_DOMAINS_ARRAY[@]}" ; do
-         process_certificate "${DOMAIN}"
+      for domain in "${LETSENCRYPT_DOMAINS_ARRAY[@]}" ; do
+         process_certificate "${domain}"
       done
       MESSAGE="One or more certificates renewed successfully"
    else
@@ -279,13 +289,41 @@ process_certificates() {
    fi
 }
 
-echo "###  Starting certificate renewal process at $(date +'%F %T.%3N %Z')  ###"
+run_pre_hook() {
+   if [ ! -z "${PRE_HOOK_COMMAND}" ]; then
+      bash -c "${PRE_HOOK_COMMAND}"
+      if [ $? ]; then
+         log "Pre hook command completed successfully"
+      else
+         log "Pre hook command failed" "ERROR"
+      fi
+   else
+      log "No pre hook command set"
+   fi
+}
+
+run_post_hook() {
+   if [ ! -z "${POST_HOOK_COMMAND}" ]; then
+      bash -c "${POST_HOOK_COMMAND}"
+      if [ $? ]; then
+         log "Post hook command completed successfully"
+      else
+         log "Post hook command failed" "ERROR"
+      fi
+   else
+      log "No post hook command set"
+   fi
+}
+
+echo "###  Starting certificate renewal process at $(print_pretty_timestamp)  ###"
 
 trap handle_error ERR
 trap handle_exit EXIT
 
+run_pre_hook
 retrieve_new_certificates
 renew_old_certificates
 process_certificates
+run_post_hook
 
 exit 0;
