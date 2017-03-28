@@ -74,19 +74,11 @@ fi
 
 MESSAGE=""
 
-print_pretty_timestamp() {
-   return "$(date +'%F %T.%3N %Z')"
-}
-
-print_timestamp() {
-   return "$(date +'%Y%m%d%H%M%S')"
-}
-
 log() {
    local message=$1
    local level=${1:-INFO}
 
-   echo "$(print_pretty_timestamp) ${level} - ${message}"
+   echo "$(date +'%F %T.%3N %Z') ${level} - ${message}"
 }
 
 send_email() {
@@ -135,7 +127,7 @@ handle_error() {
 
    send_emails
 
-   echo "###  Certificate renewal process completed with error at $(print_pretty_timestamp)  ###"
+   echo "###  Certificate renewal process completed with error at $(date +'%F %T.%3N %Z')  ###"
 
    exit 1
 }
@@ -147,7 +139,7 @@ handle_success() {
 
    send_emails
 
-   echo "###  Certificate renewal process completed successfully at $(print_pretty_timestamp)  ###"
+   echo "###  Certificate renewal process completed successfully at $(date +'%F %T.%3N %Z')  ###"
 
    exit 0
 }
@@ -240,7 +232,7 @@ backup_certificate() {
    local domain=$1
    local letsencrypt_domain_dir="${LETSENCRYPT_LIVE_DIR}/${domain}"
    local letsencrypt_cert_file="${LETSENCRYPT_CERTS_DIR}/${domain}.pem"
-   local letsencrypt_cert_file_backup_file="${letsencrypt_domain_dir}/${domain}.pem.$(print_timestamp)"
+   local letsencrypt_cert_file_backup_file="${letsencrypt_domain_dir}/${domain}.pem.$(date +'%Y%m%d%H%M%S')"
 
    if [ -f "${letsencrypt_cert_file}" ]; then
       log "Backing up old certificate ${letsencrypt_cert_file} to ${letsencrypt_cert_file_backup_file}."
@@ -315,7 +307,7 @@ run_post_hook() {
    fi
 }
 
-echo "###  Starting certificate renewal process at $(print_pretty_timestamp)  ###"
+echo "###  Starting certificate renewal process at $(date +'%F %T.%3N %Z')  ###"
 
 trap handle_error ERR
 trap handle_exit EXIT
