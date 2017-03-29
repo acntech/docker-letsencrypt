@@ -32,6 +32,8 @@ RUN chmod a+x ${LETSENCRYPT_HOME}/bin/certbot-auto
 
 COPY resources/letsencrypt-wrapper.sh ${LETSENCRYPT_HOME}/bin/letsencrypt-wrapper.sh
 
+COPY resources/letsencrypt.sh /letsencrypt.sh
+
 COPY resources/entrypoint.sh /entrypoint.sh
 
 
