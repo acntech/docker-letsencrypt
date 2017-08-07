@@ -14,7 +14,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update && \
     apt-get -y upgrade && \
-    apt-get -y install apt-utils wget
+    apt-get -y install apt-utils wget cron
 
 RUN mkdir -p ${LETSENCRYPT_HOME}/bin
 
@@ -32,9 +32,12 @@ RUN chmod a+x ${LETSENCRYPT_HOME}/bin/certbot-auto
 
 COPY resources/letsencrypt-wrapper.sh ${LETSENCRYPT_HOME}/bin/letsencrypt-wrapper.sh
 
-COPY resources/letsencrypt.sh /letsencrypt.sh
+COPY resources/crontab.sh ${LETSENCRYPT_HOME}/bin/crontab.sh
 
 COPY resources/entrypoint.sh /entrypoint.sh
+
+
+RUN crontab ${LETSENCRYPT_HOME}/bin/crontab.sh
 
 
 EXPOSE 80 443

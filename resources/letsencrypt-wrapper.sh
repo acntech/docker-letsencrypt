@@ -257,7 +257,7 @@ process_certificate() {
    local skipped_line="${domain}/fullchain.pem (skipped)"
 
    if ! find_text_in_file "${LETSENCRYPT_LOG_DIR}/renew.log" "${skipped_line}" ; then
-      log "Certificate for domain ${domain} needes to be renewed"
+      log "Certificate for domain ${domain} needs to be renewed"
       backup_certificate "${domain}"
       combine_new_certificate "${domain}"
    else
