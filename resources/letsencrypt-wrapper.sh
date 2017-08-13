@@ -162,6 +162,7 @@ letsencrypt_retrieve_new_certificate() {
                --email ${LETSENCRYPT_REG_EMAIL} \
                --agree-tos \
                --noninteractive \
+               --preferred-challenges http \
                --http-01-port ${LETSENCRYPT_HTTP_PORT} \
                --tls-sni-01-port ${LETSENCRYPT_HTTPS_PORT} \
                --rsa-key-size ${LETSENCRYPT_CERT_KEY_SIZE} \
@@ -177,6 +178,7 @@ letsencrypt_renew_old_certificates() {
                --email ${LETSENCRYPT_REG_EMAIL} \
                --agree-tos \
                --noninteractive \
+               --preferred-challenges http \
                --http-01-port ${LETSENCRYPT_HTTP_PORT} \
                --tls-sni-01-port ${LETSENCRYPT_HTTPS_PORT} \
                --rsa-key-size ${LETSENCRYPT_CERT_KEY_SIZE} \
