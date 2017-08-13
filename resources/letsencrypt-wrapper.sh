@@ -9,6 +9,7 @@ LETSENCRYPT_LIVE_DIR="/etc/letsencrypt/live"
 LETSENCRYPT_HTTP_PORT=${LETSENCRYPT_HTTP_PORT:-80}
 LETSENCRYPT_HTTPS_PORT=${LETSENCRYPT_HTTPS_PORT:-443}
 LETSENCRYPT_CERT_KEY_SIZE=${LETSENCRYPT_CERT_KEY_SIZE:-4096}
+LETSENCRYPT_PROCESS_DOMAINS_ARRAY=()
 
 if ${NOTIFICATION_EMAIL_ACTIVE} ; then
    if [ -z "${NOTIFICATION_EMAIL_SENDER}" ]; then
@@ -199,10 +200,12 @@ find_text_in_file() {
 retrieve_new_certificate() {
    local domain=$1
 
-   log "Retrieving new certificate for domain ${domain}."
+   log "Retrieving new certificate for domain ${domain}..."
    if ! letsencrypt_retrieve_new_certificate "${domain}" ; then
       MESSAGE="Automated retrieval of certificates for domain ${domain} failed. Check ${LETSENCRYPT_LOG_DIR}/retrieve_${domain}.log for details."
       exit 1
+   else
+      LETSENCRYPT_PROCESS_DOMAINS_ARRAY+=("${domain}")
    fi
 }
 
@@ -236,7 +239,7 @@ backup_certificate() {
    local letsencrypt_cert_file_backup_file="${letsencrypt_domain_dir}/${domain}.pem.$(date +'%Y%m%d%H%M%S')"
 
    if [ -f "${letsencrypt_cert_file}" ]; then
-      log "Backing up old certificate ${letsencrypt_cert_file} to ${letsencrypt_cert_file_backup_file}."
+      log "Backing up old certificate ${letsencrypt_cert_file} to ${letsencrypt_cert_file_backup_file}..."
       if ! mv "${letsencrypt_cert_file}" "${letsencrypt_cert_file_backup_file}" ; then
          MESSAGE="Failed to backup old certificate ${letsencrypt_cert_file}."
          exit 1
@@ -254,28 +257,39 @@ renew_old_certificates() {
    fi
 }
 
-process_certificate() {
+process_old_certificate() {
    local domain=$1
    local skipped_line="${domain}/fullchain.pem (skipped)"
 
    if ! find_text_in_file "${LETSENCRYPT_LOG_DIR}/renew.log" "${skipped_line}" ; then
-      log "Certificate for domain ${domain} needs to be renewed"
+      log "Certificate for domain ${domain} has been renewed, processing..."
       backup_certificate "${domain}"
       combine_new_certificate "${domain}"
    else
-      log "Certificate for domain ${domain} does not needed renewal"
+      log "Certificate for domain ${domain} has not been renewed"
    fi
+}
+
+process_new_certificate() {
+   local domain=$1
+
+   log "Certificate for domain ${domain} was created, processing..."
+   combine_new_certificate "${domain}"
 }
 
 process_certificates() {
    local all_skipped_line="No renewals were attempted"
    
    if ! find_text_in_file "${LETSENCRYPT_LOG_DIR}/renew.log" "${all_skipped_line}" ; then
-      log "One or more certificates needs to be renewed"
+      log "One or more certificates was renewed"
       for domain in "${LETSENCRYPT_DOMAINS_ARRAY[@]}" ; do
-         process_certificate "${domain}"
+         process_old_certificate "${domain}"
       done
       MESSAGE="One or more certificates renewed successfully"
+   elif [ ${#LETSENCRYPT_PROCESS_DOMAINS_ARRAY[@]} -ne 0 ]; then
+      for domain in "${LETSENCRYPT_PROCESS_DOMAINS_ARRAY[@]}" ; do
+         process_new_certificate "${domain}"
+      done
    else
       log "No certificates needed renewal"
       NOTIFICATION_EMAIL_ACTIVE=false
