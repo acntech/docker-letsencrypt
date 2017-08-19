@@ -39,4 +39,4 @@ echo "#                                                      #"
 echo "########################################################"
 echo ""
 
-cron && tail -f "${LETSENCRYPT_LOG_DIR}/letsencrypt.log"
+cron -f

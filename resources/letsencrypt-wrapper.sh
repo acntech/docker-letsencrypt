@@ -273,7 +273,7 @@ process_old_certificate() {
 process_new_certificate() {
    local domain=$1
 
-   log "Certificate for domain ${domain} was created, processing..."
+   log "Certificate for domain ${domain} was retrieved, processing..."
    combine_new_certificate "${domain}"
 }
 
