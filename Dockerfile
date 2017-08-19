@@ -16,7 +16,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update && \
     apt-get -y upgrade && \
-    apt-get -y install apt-utils wget cron
+    apt-get -y install apt-utils wget vim cron
 
 RUN mkdir -p ${LETSENCRYPT_BIN_DIR}/
 
